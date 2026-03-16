@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau de bord</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <h1>Tableau de bord</h1>
+
+    <div id="userInfo">
+      <p>Chargement...</p>
+    </div>
+
+    <button id="logoutBtn" class="btn btn-danger">Se déconnecter</button>
+  </div>
+
+  <script>
+    // On demande au serveur les infos de l'utilisateur connecté
+    fetch('/api/me')
+      .then(res => {
+        if (!res.ok) {
+          // Si pas connecté, le serveur redirige vers /login.html
+          window.location.href = '/login.html';
+          return;
+        }
+        return res.json();
+      })
+      .then(user => {
+        if (!user) return;
+        document.getElementById('userInfo').innerHTML = `
+          <p><strong>Nom d'utilisateur :</strong> ${user.username}</p>
+          <p><strong>Email :</strong> ${user.email}</p>
+          <p><strong>Membre depuis :</strong> ${new Date(user.created_at).toLocaleDateString('fr-FR')}</p>
+        `;
+      });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+  </script>
+</body>
+</html>

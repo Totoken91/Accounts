@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscription</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <h1>Créer un compte</h1>
+
+    <div id="message" class="message hidden"></div>
+
+    <form id="registerForm">
+      <label for="username">Nom d'utilisateur</label>
+      <input type="text" id="username" name="username" placeholder="jean_dupont" required>
+
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="jean@exemple.com" required>
+
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" placeholder="Au moins 6 caractères" required>
+
+      <button type="submit" class="btn">S'inscrire</button>
+    </form>
+
+    <p class="footer-link">Déjà un compte ? <a href="/login.html">Se connecter</a></p>
+  </div>
+
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault(); // empêche le rechargement de la page
+
+      const data = {
+        username: document.getElementById('username').value,
+        email:    document.getElementById('email').value,
+        password: document.getElementById('password').value,
+      };
+
+      // On envoie les données au serveur en JSON
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+      const msgEl = document.getElementById('message');
+      msgEl.classList.remove('hidden', 'success', 'error');
+
+      if (res.ok) {
+        msgEl.textContent = result.message;
+        msgEl.classList.add('success');
+        // Redirection vers la connexion après 1,5 secondes
+        setTimeout(() => window.location.href = '/login.html', 1500);
+      } else {
+        msgEl.textContent = result.error;
+        msgEl.classList.add('error');
+      }
+    });
+  </script>
+</body>
+</html>
