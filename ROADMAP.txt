@@ -1,0 +1,138 @@
+================================================================================
+  ROADMAP — Convertisseur d'images (nom de code : ImgFlow)
+================================================================================
+
+VISION
+------
+Partir d'un simple convertisseur WebP → PNG, gratuit avec pubs,
+et évoluer vers un éditeur d'images en ligne complet avec modèle freemium.
+Objectif pédagogique : apprendre en construisant un vrai produit qui tourne
+avec de vrais utilisateurs et de l'argent réel.
+
+================================================================================
+  PHASE 1 — Socle technique  [FAIT]
+================================================================================
+
+  [x] Création de compte (username, email, mot de passe)
+  [x] Hashage du mot de passe avec bcrypt
+  [x] Connexion / déconnexion
+  [x] Sessions utilisateur
+  [x] Déploiement sur Railway
+
+================================================================================
+  PHASE 2 — Solidifier la base
+================================================================================
+
+  [ ] 1. Migrer vers PostgreSQL
+          - Remplacer SQLite par une vraie base de données persistante
+          - Railway fournit un PostgreSQL gratuit
+          - Utiliser la lib "pg" ou l'ORM "Drizzle"
+          - Les données survivent aux redeploys
+
+  [ ] 2. Validation robuste des formulaires
+          - Email au bon format
+          - Mot de passe : min 8 caractères, au moins 1 chiffre
+          - Username : pas de caractères spéciaux, min 3 caractères
+          - Messages d'erreur clairs côté client ET côté serveur
+
+  [ ] 3. Réinitialisation du mot de passe par email
+          - Formulaire "Mot de passe oublié"
+          - Génération d'un token temporaire (expire après 1h)
+          - Envoi d'un email avec lien de reset (Resend ou Nodemailer)
+          - Page pour choisir un nouveau mot de passe
+
+  [ ] 4. Connexion via OAuth (Google)
+          - Bouton "Se connecter avec Google"
+          - Pas besoin de retenir un mot de passe
+          - Utiliser Passport.js avec la stratégie Google OAuth2
+
+================================================================================
+  PHASE 3 — Le produit : convertisseur WebP → PNG
+================================================================================
+
+  [ ] 5. Upload et conversion de fichiers
+          - Interface drag & drop pour uploader un .webp
+          - Conversion côté serveur avec la lib "sharp" (rapide et fiable)
+          - Téléchargement immédiat du .png résultant
+          - Pas besoin d'être connecté pour la version gratuite
+
+  [ ] 6. Système de quotas (free vs payant)
+          - Version gratuite :
+              * 10 conversions par jour (identifié par IP ou compte)
+              * Taille max : 5 MB par fichier
+              * 1 fichier à la fois
+          - Version Pro :
+              * Conversions illimitées
+              * Taille max : 50 MB par fichier
+              * Conversion en lot (jusqu'à 20 fichiers)
+              * Sans publicité
+
+  [ ] 7. Intégration des publicités (version gratuite)
+          - Google AdSense : bannière au-dessus et sous le convertisseur
+          - Interstitiel entre chaque conversion (après la 2e)
+          - Les pubs disparaissent pour les comptes Pro
+
+================================================================================
+  PHASE 4 — Monétisation réelle
+================================================================================
+
+  [ ] 8. Intégration Stripe (paiement)
+          - Abonnement mensuel à $2/mois
+          - OU achat unique "lifetime" à $9 (testé selon la demande)
+          - Webhook Stripe pour activer/désactiver le statut Pro en temps réel
+          - Gestion des annulations d'abonnement
+
+  [ ] 9. Page de pricing
+          - Comparatif clair Free vs Pro
+          - Bouton d'achat avec Stripe Checkout (hébergé par Stripe, simple)
+          - Page de confirmation après paiement
+
+  [ ] 10. Dashboard utilisateur
+          - Quota utilisé aujourd'hui
+          - Statut de l'abonnement (Free / Pro / date de renouvellement)
+          - Historique des conversions (7 derniers jours)
+          - Gérer / annuler l'abonnement
+
+================================================================================
+  PHASE 5 — Évoluer vers un éditeur complet
+================================================================================
+
+  [ ] 11. Autres formats de conversion
+          - WebP → JPG
+          - JPG / PNG → WebP (pour optimiser des sites)
+          - PNG → JPG
+          - HEIC → JPG (format iPhone, très demandé)
+
+  [ ] 12. Compression d'images
+          - Réduire le poids d'une image sans perte visible de qualité
+          - Afficher le gain en % ("votre image passe de 2.4 MB à 480 KB")
+
+  [ ] 13. Redimensionnement
+          - Choisir largeur × hauteur cible
+          - Modes : recadrer, étirer, ou conserver les proportions
+
+  [ ] 14. Traitement en lot
+          - Uploader un .zip contenant plusieurs images
+          - Télécharger un .zip avec toutes les images converties/compressées
+
+  [ ] 15. API (pour les développeurs)
+          - Endpoints REST pour convertir via requête HTTP
+          - Clé API par utilisateur Pro
+          - Documentation claire avec exemples curl
+
+================================================================================
+  STACK TECHNIQUE
+================================================================================
+
+  Backend  : Node.js + Express
+  Base DB  : PostgreSQL (via Railway)
+  ORM      : Drizzle (léger et typé)
+  Images   : sharp (conversion, compression, resize)
+  Auth     : Sessions + Passport.js (OAuth Google)
+  Email    : Resend (simple, free tier généreux)
+  Paiement : Stripe
+  Pubs     : Google AdSense
+  Héberg.  : Railway
+  Frontend : HTML/CSS/JS vanilla (pas de framework pour l'instant)
+
+================================================================================
