@@ -1,3 +1,5 @@
+require('dotenv').config(); // charge .env en local (ignoré si la variable existe déjà)
+
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
@@ -118,6 +120,13 @@ app.get('/api/me', requireLogin, async (req, res) => {
 });
 
 // ─── Démarrage ────────────────────────────────────────────────────────────────
-initDB().then(() => {
-  app.listen(PORT, () => console.log(`Serveur démarré sur http://localhost:${PORT}`));
-});
+initDB()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Serveur démarré sur http://localhost:${PORT}`));
+  })
+  .catch(err => {
+    console.error('Impossible de se connecter à la base de données :');
+    console.error('  →', err.message);
+    console.error('\nVérifie que DATABASE_URL est bien défini dans ton fichier .env');
+    process.exit(1);
+  });
