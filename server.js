@@ -6,11 +6,18 @@ const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const Joi = require('joi');
 const crypto = require('crypto'); // module natif Node — génère des tokens aléatoires sécurisés
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const resend = new Resend(process.env.RESEND_API_KEY);
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
 
 // ─── Base de données ───────────────────────────────────────────────────────────
 const pool = new Pool({
@@ -228,22 +235,20 @@ app.post('/api/forgot-password', validate(forgotSchema), async (req, res) => {
 
     const resetUrl = `${process.env.APP_URL}/reset-password.html?token=${token}`;
 
-    // resend.emails.send() ne throw PAS — il renvoie { data, error }
-    // Il faut vérifier explicitement le champ error
-    const { error: sendError } = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'noreply@tondomaine.com',
-      to: email,
-      subject: 'Réinitialisation de votre mot de passe',
-      html: `
-        <p>Tu as demandé à réinitialiser ton mot de passe.</p>
-        <p>Clique sur le lien ci-dessous (valable 1 heure) :</p>
-        <p><a href="${resetUrl}">${resetUrl}</a></p>
-        <p>Si tu n'es pas à l'origine de cette demande, ignore cet email.</p>
-      `,
-    });
-
-    if (sendError) {
-      console.error('[Resend] Échec envoi email :', sendError);
+    try {
+      await transporter.sendMail({
+        from: process.env.GMAIL_USER,
+        to: email,
+        subject: 'Réinitialisation de votre mot de passe',
+        html: `
+          <p>Tu as demandé à réinitialiser ton mot de passe.</p>
+          <p>Clique sur le lien ci-dessous (valable 1 heure) :</p>
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <p>Si tu n'es pas à l'origine de cette demande, ignore cet email.</p>
+        `,
+      });
+    } catch (mailErr) {
+      console.error('[Nodemailer] Échec envoi email :', mailErr);
       return res.status(500).json({ error: 'Impossible d\'envoyer l\'email. Réessaie dans quelques instants.' });
     }
 
@@ -287,7 +292,7 @@ app.post('/api/reset-password', validate(resetSchema), async (req, res) => {
 });
 
 // ─── Vérification des variables d'environnement au démarrage ─────────────────
-const REQUIRED_ENV = ['DATABASE_URL', 'SESSION_SECRET', 'RESEND_API_KEY', 'APP_URL', 'EMAIL_FROM'];
+const REQUIRED_ENV = ['DATABASE_URL', 'SESSION_SECRET', 'GMAIL_USER', 'GMAIL_PASS', 'APP_URL'];
 REQUIRED_ENV.forEach(key => {
   if (!process.env[key]) console.warn(`[WARN] Variable manquante : ${key}`);
 });
