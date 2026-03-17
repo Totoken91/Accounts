@@ -13,8 +13,9 @@ const PORT = process.env.PORT || 3000;
 // Railway injecte automatiquement DATABASE_URL dans les variables d'env
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // SSL obligatoire sur Railway (et la plupart des hébergeurs cloud)
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // SSL activé dès que DATABASE_URL est défini (Railway, Neon, Supabase…)
+  // En local sans DATABASE_URL, pg utilise localhost sans SSL
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
 // Création de la table au démarrage si elle n'existe pas
@@ -125,8 +126,9 @@ initDB()
     app.listen(PORT, () => console.log(`Serveur démarré sur http://localhost:${PORT}`));
   })
   .catch(err => {
-    console.error('Impossible de se connecter à la base de données :');
-    console.error('  →', err.message);
-    console.error('\nVérifie que DATABASE_URL est bien défini dans ton fichier .env');
+    console.error('Impossible de se connecter à la base de données.');
+    console.error('Code :', err.code);
+    console.error('Message :', err.message);
+    console.error('DATABASE_URL défini :', !!process.env.DATABASE_URL);
     process.exit(1);
   });
