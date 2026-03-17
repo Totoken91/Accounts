@@ -228,7 +228,9 @@ app.post('/api/forgot-password', validate(forgotSchema), async (req, res) => {
 
     const resetUrl = `${process.env.APP_URL}/reset-password.html?token=${token}`;
 
-    await resend.emails.send({
+    // resend.emails.send() ne throw PAS — il renvoie { data, error }
+    // Il faut vérifier explicitement le champ error
+    const { error: sendError } = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'noreply@tondomaine.com',
       to: email,
       subject: 'Réinitialisation de votre mot de passe',
@@ -239,6 +241,11 @@ app.post('/api/forgot-password', validate(forgotSchema), async (req, res) => {
         <p>Si tu n'es pas à l'origine de cette demande, ignore cet email.</p>
       `,
     });
+
+    if (sendError) {
+      console.error('[Resend] Échec envoi email :', sendError);
+      return res.status(500).json({ error: 'Impossible d\'envoyer l\'email. Réessaie dans quelques instants.' });
+    }
 
     res.json({ success: true, message: 'Si cet email existe, un lien vous a été envoyé.' });
   } catch (err) {
@@ -277,6 +284,12 @@ app.post('/api/reset-password', validate(resetSchema), async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
+});
+
+// ─── Vérification des variables d'environnement au démarrage ─────────────────
+const REQUIRED_ENV = ['DATABASE_URL', 'SESSION_SECRET', 'RESEND_API_KEY', 'APP_URL', 'EMAIL_FROM'];
+REQUIRED_ENV.forEach(key => {
+  if (!process.env[key]) console.warn(`[WARN] Variable manquante : ${key}`);
 });
 
 // ─── Démarrage ────────────────────────────────────────────────────────────────
