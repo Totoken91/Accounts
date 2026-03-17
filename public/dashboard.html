@@ -30,11 +30,16 @@
       })
       .then(user => {
         if (!user) return;
-        document.getElementById('userInfo').innerHTML = `
-          <p><strong>Nom d'utilisateur :</strong> ${user.username}</p>
-          <p><strong>Email :</strong> ${user.email}</p>
-          <p><strong>Membre depuis :</strong> ${new Date(user.created_at).toLocaleDateString('fr-FR')}</p>
-        `;
+        // On utilise textContent (jamais innerHTML avec des données utilisateur → risque XSS)
+        const info = document.getElementById('userInfo');
+        info.innerHTML = '<p></p><p></p><p></p>';
+        const [p1, p2, p3] = info.querySelectorAll('p');
+        p1.innerHTML = '<strong>Nom d\'utilisateur :</strong> ';
+        p1.append(user.username);
+        p2.innerHTML = '<strong>Email :</strong> ';
+        p2.append(user.email);
+        p3.innerHTML = '<strong>Membre depuis :</strong> ';
+        p3.append(new Date(user.created_at).toLocaleDateString('fr-FR'));
       });
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {

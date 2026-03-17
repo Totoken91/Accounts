@@ -124,6 +124,12 @@ input:focus {
   display: none;
 }
 
+small {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: -0.2rem;
+}
+
 .footer-link {
   margin-top: 1.2rem;
   text-align: center;

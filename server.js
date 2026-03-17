@@ -131,17 +131,22 @@ app.post('/api/register', validate(registerSchema), async (req, res) => {
 app.post('/api/login', validate(loginSchema), async (req, res) => {
   const { email, password } = req.body;
 
-  const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-  const user = result.rows[0];
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
+    }
+
+    req.session.userId = user.id;
+    req.session.username = user.username;
+
+    res.json({ success: true, message: `Bienvenue, ${user.username} !` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
-
-  req.session.userId = user.id;
-  req.session.username = user.username;
-
-  res.json({ success: true, message: `Bienvenue, ${user.username} !` });
 });
 
 // POST /api/logout
@@ -151,11 +156,16 @@ app.post('/api/logout', (req, res) => {
 
 // GET /api/me
 app.get('/api/me', requireLogin, async (req, res) => {
-  const result = await pool.query(
-    'SELECT id, username, email, created_at FROM users WHERE id = $1',
-    [req.session.userId]
-  );
-  res.json(result.rows[0]);
+  try {
+    const result = await pool.query(
+      'SELECT id, username, email, created_at FROM users WHERE id = $1',
+      [req.session.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
 });
 
 // ─── Démarrage ────────────────────────────────────────────────────────────────
@@ -164,9 +174,6 @@ initDB()
     app.listen(PORT, () => console.log(`Serveur démarré sur http://localhost:${PORT}`));
   })
   .catch(err => {
-    console.error('Impossible de se connecter à la base de données.');
-    console.error('Code :', err.code);
-    console.error('Message :', err.message);
-    console.error('DATABASE_URL défini :', !!process.env.DATABASE_URL);
+    console.error('Impossible de se connecter à la base de données :', err.message);
     process.exit(1);
   });
