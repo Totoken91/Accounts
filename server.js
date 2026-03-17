@@ -1,60 +1,61 @@
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
 const app = express();
-// Railway (et la plupart des hébergeurs) injecte le PORT via variable d'env
 const PORT = process.env.PORT || 3000;
 
 // ─── Base de données ───────────────────────────────────────────────────────────
-// SQLite crée automatiquement le fichier s'il n'existe pas
-const db = new Database('users.db');
+// Pool = groupe de connexions réutilisables (plus efficace qu'une connexion unique)
+// Railway injecte automatiquement DATABASE_URL dans les variables d'env
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  // SSL obligatoire sur Railway (et la plupart des hébergeurs cloud)
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
 
-// On crée la table des utilisateurs si elle n'existe pas encore
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    username  TEXT    UNIQUE NOT NULL,
-    email     TEXT    UNIQUE NOT NULL,
-    password  TEXT    NOT NULL,
-    created_at TEXT   DEFAULT (datetime('now'))
-  )
-`);
+// Création de la table au démarrage si elle n'existe pas
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id         SERIAL PRIMARY KEY,
+      username   TEXT UNIQUE NOT NULL,
+      email      TEXT UNIQUE NOT NULL,
+      password   TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  console.log('Base de données prête.');
+}
 
 // ─── Middlewares ───────────────────────────────────────────────────────────────
-app.use(express.json());                    // pour lire les corps JSON
-app.use(express.urlencoded({ extended: true })); // pour lire les formulaires HTML
-app.use(express.static('public'));          // sert les fichiers HTML/CSS/JS statiques
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
-// Gestion des sessions (stockées côté serveur, un cookie est envoyé au navigateur)
 app.use(session({
-  // En prod, définir SESSION_SECRET dans les variables d'env Railway
   secret: process.env.SESSION_SECRET || 'dev-secret-local-seulement',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    httpOnly: true,   // inaccessible via JavaScript côté client (protection XSS)
-    maxAge: 1000 * 60 * 60 * 24  // 24 heures en millisecondes
-  }
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24,
+  },
 }));
 
-// ─── Middleware de protection de routes ───────────────────────────────────────
+// ─── Middleware de protection ──────────────────────────────────────────────────
 function requireLogin(req, res, next) {
-  if (!req.session.userId) {
-    return res.redirect('/login.html');
-  }
-  next(); // l'utilisateur est connecté, on continue
+  if (!req.session.userId) return res.redirect('/login.html');
+  next();
 }
 
 // ─── Routes API ───────────────────────────────────────────────────────────────
 
-// POST /api/register — Inscription
-app.post('/api/register', (req, res) => {
+// POST /api/register
+app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
 
-  // Validation basique des champs
   if (!username || !email || !password) {
     return res.status(400).json({ error: 'Tous les champs sont obligatoires.' });
   }
@@ -62,65 +63,61 @@ app.post('/api/register', (req, res) => {
     return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
   }
 
-  // Hashage du mot de passe (jamais stocker en clair !)
-  // 10 = "cost factor" : plus c'est élevé, plus c'est lent (et sécurisé)
-  const hashedPassword = bcrypt.hashSync(password, 10);
+  const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
-    const stmt = db.prepare(
-      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)'
+    await pool.query(
+      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3)',
+      [username, email, hashedPassword]
+      // $1, $2, $3 = paramètres numérotés en PostgreSQL (vs ? en SQLite)
     );
-    stmt.run(username, email, hashedPassword);
-
     res.json({ success: true, message: 'Compte créé avec succès !' });
   } catch (err) {
-    // Erreur UNIQUE : username ou email déjà utilisé
-    if (err.message.includes('UNIQUE')) {
+    // Code 23505 = violation de contrainte UNIQUE en PostgreSQL
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Ce nom d\'utilisateur ou cet email est déjà pris.' });
     }
+    console.error(err);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
 
-// POST /api/login — Connexion
-app.post('/api/login', (req, res) => {
+// POST /api/login
+app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email et mot de passe requis.' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  const user = result.rows[0]; // pg retourne toujours un objet { rows: [...] }
 
-  // On vérifie si l'utilisateur existe ET si le mot de passe correspond au hash
-  if (!user || !bcrypt.compareSync(password, user.password)) {
+  if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
   }
 
-  // On sauvegarde l'ID en session (c'est ce qui "connecte" l'utilisateur)
   req.session.userId = user.id;
   req.session.username = user.username;
 
   res.json({ success: true, message: `Bienvenue, ${user.username} !` });
 });
 
-// POST /api/logout — Déconnexion
+// POST /api/logout
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+  req.session.destroy(() => res.json({ success: true }));
 });
 
-// GET /api/me — Infos de l'utilisateur connecté (route protégée)
-app.get('/api/me', requireLogin, (req, res) => {
-  const user = db.prepare(
-    'SELECT id, username, email, created_at FROM users WHERE id = ?'
-  ).get(req.session.userId);
-
-  res.json(user);
+// GET /api/me
+app.get('/api/me', requireLogin, async (req, res) => {
+  const result = await pool.query(
+    'SELECT id, username, email, created_at FROM users WHERE id = $1',
+    [req.session.userId]
+  );
+  res.json(result.rows[0]);
 });
 
-// ─── Démarrage du serveur ─────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
+// ─── Démarrage ────────────────────────────────────────────────────────────────
+initDB().then(() => {
+  app.listen(PORT, () => console.log(`Serveur démarré sur http://localhost:${PORT}`));
 });
