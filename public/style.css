@@ -29,6 +29,13 @@ h1 {
   color: #1a1a2e;
 }
 
+.subtitle {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: -0.8rem;
+  margin-bottom: 1rem;
+}
+
 form {
   display: flex;
   flex-direction: column;

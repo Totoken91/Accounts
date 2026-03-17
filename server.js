@@ -1,13 +1,16 @@
-require('dotenv').config(); // charge .env en local (ignoré si la variable existe déjà)
+require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const Joi = require('joi');
+const crypto = require('crypto'); // module natif Node — génère des tokens aléatoires sécurisés
+const { Resend } = require('resend');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ─── Base de données ───────────────────────────────────────────────────────────
 const pool = new Pool({
@@ -25,14 +28,25 @@ async function initDB() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+
+  // Table des tokens de réinitialisation
+  // Un token = une demande de reset, valable 1 heure
+  // ON DELETE CASCADE = si l'utilisateur est supprimé, ses tokens le sont aussi
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token      TEXT PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL
+    )
+  `);
+
   console.log('Base de données prête.');
 }
 
 // ─── Schémas de validation ─────────────────────────────────────────────────────
-// Joi décrit les règles, puis .validate() les applique — plus lisible qu'une suite de if/else
 const registerSchema = Joi.object({
   username: Joi.string()
-    .alphanum()            // lettres et chiffres uniquement (pas d'espaces ni caractères spéciaux)
+    .alphanum()
     .min(3)
     .max(30)
     .required()
@@ -44,7 +58,7 @@ const registerSchema = Joi.object({
     }),
 
   email: Joi.string()
-    .email({ tlds: { allow: false } }) // vérifie le format, sans vérifier le TLD (.com, .fr…)
+    .email({ tlds: { allow: false } })
     .required()
     .messages({
       'string.email': 'L\'adresse email n\'est pas valide.',
@@ -54,8 +68,8 @@ const registerSchema = Joi.object({
   password: Joi.string()
     .min(8)
     .max(128)
-    .pattern(/[A-Z]/, 'majuscule')       // au moins une majuscule
-    .pattern(/[0-9]/, 'chiffre')         // au moins un chiffre
+    .pattern(/[A-Z]/, 'majuscule')
+    .pattern(/[0-9]/, 'chiffre')
     .required()
     .messages({
       'string.min': 'Le mot de passe doit faire au moins 8 caractères.',
@@ -69,9 +83,27 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
+const forgotSchema = Joi.object({
+  email: Joi.string().email({ tlds: { allow: false } }).required()
+    .messages({ 'any.required': 'L\'email est obligatoire.' }),
+});
+
+const resetSchema = Joi.object({
+  token: Joi.string().required(),
+  password: Joi.string()
+    .min(8)
+    .max(128)
+    .pattern(/[A-Z]/, 'majuscule')
+    .pattern(/[0-9]/, 'chiffre')
+    .required()
+    .messages({
+      'string.min': 'Le mot de passe doit faire au moins 8 caractères.',
+      'string.pattern.name': 'Le mot de passe doit contenir au moins une {#name}.',
+      'any.required': 'Le mot de passe est obligatoire.',
+    }),
+});
+
 // ─── Middleware de validation ──────────────────────────────────────────────────
-// Fabrique un middleware à partir d'un schéma Joi
-// abortEarly: false = renvoie TOUTES les erreurs d'un coup (pas seulement la première)
 function validate(schema) {
   return (req, res, next) => {
     const { error } = schema.validate(req.body, { abortEarly: false });
@@ -107,7 +139,6 @@ function requireLogin(req, res, next) {
 // ─── Routes API ───────────────────────────────────────────────────────────────
 
 // POST /api/register
-// validate(registerSchema) s'exécute avant le handler — si invalide, il répond 400 directement
 app.post('/api/register', validate(registerSchema), async (req, res) => {
   const { username, email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -162,6 +193,86 @@ app.get('/api/me', requireLogin, async (req, res) => {
       [req.session.userId]
     );
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// POST /api/forgot-password
+// Reçoit un email, génère un token, l'enregistre en DB, envoie le lien par email
+app.post('/api/forgot-password', validate(forgotSchema), async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const result = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+
+    // Réponse identique que l'email existe ou non — évite de révéler quels emails sont enregistrés
+    if (!user) {
+      return res.json({ success: true, message: 'Si cet email existe, un lien vous a été envoyé.' });
+    }
+
+    // Supprime les anciens tokens de cet utilisateur avant d'en créer un nouveau
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
+
+    // crypto.randomBytes(32) = 32 octets aléatoires → 64 caractères hex
+    // C'est cryptographiquement sécurisé (contrairement à Math.random())
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // expire dans 1 heure
+
+    await pool.query(
+      'INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)',
+      [token, user.id, expiresAt]
+    );
+
+    const resetUrl = `${process.env.APP_URL}/reset-password.html?token=${token}`;
+
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'noreply@tondomaine.com',
+      to: email,
+      subject: 'Réinitialisation de votre mot de passe',
+      html: `
+        <p>Tu as demandé à réinitialiser ton mot de passe.</p>
+        <p>Clique sur le lien ci-dessous (valable 1 heure) :</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>Si tu n'es pas à l'origine de cette demande, ignore cet email.</p>
+      `,
+    });
+
+    res.json({ success: true, message: 'Si cet email existe, un lien vous a été envoyé.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// POST /api/reset-password
+// Reçoit le token + nouveau mot de passe, vérifie le token, met à jour le mot de passe
+app.post('/api/reset-password', validate(resetSchema), async (req, res) => {
+  const { token, password } = req.body;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM password_reset_tokens WHERE token = $1',
+      [token]
+    );
+    const resetToken = result.rows[0];
+
+    // Token inexistant ou expiré
+    if (!resetToken || new Date() > new Date(resetToken.expires_at)) {
+      await pool.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
+      return res.status(400).json({ error: 'Ce lien est invalide ou a expiré.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, resetToken.user_id]);
+
+    // Token usage unique — on le supprime après utilisation
+    await pool.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
+
+    res.json({ success: true, message: 'Mot de passe mis à jour. Tu peux te connecter.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur.' });
