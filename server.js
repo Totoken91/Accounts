@@ -5,7 +5,8 @@ const Database = require('better-sqlite3');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+// Railway (et la plupart des hébergeurs) injecte le PORT via variable d'env
+const PORT = process.env.PORT || 3000;
 
 // ─── Base de données ───────────────────────────────────────────────────────────
 // SQLite crée automatiquement le fichier s'il n'existe pas
@@ -29,7 +30,8 @@ app.use(express.static('public'));          // sert les fichiers HTML/CSS/JS sta
 
 // Gestion des sessions (stockées côté serveur, un cookie est envoyé au navigateur)
 app.use(session({
-  secret: 'mon-secret-super-securise-a-changer-en-prod',
+  // En prod, définir SESSION_SECRET dans les variables d'env Railway
+  secret: process.env.SESSION_SECRET || 'dev-secret-local-seulement',
   resave: false,
   saveUninitialized: false,
   cookie: {
