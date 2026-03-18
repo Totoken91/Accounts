@@ -1,138 +1,387 @@
 ================================================================================
-  ROADMAP — Convertisseur d'images (nom de code : ImgFlow)
+  IMGFLOW — Product & Technical Roadmap
 ================================================================================
 
 VISION
 ------
-Partir d'un simple convertisseur WebP → PNG, gratuit avec pubs,
-et évoluer vers un éditeur d'images en ligne complet avec modèle freemium.
-Objectif pédagogique : apprendre en construisant un vrai produit qui tourne
-avec de vrais utilisateurs et de l'argent réel.
+ImgFlow est un hub d'outils en ligne de traitement d'images et de PDFs,
+ciblant deux audiences :
 
-================================================================================
-  PHASE 1 — Socle technique  [FAIT]
-================================================================================
+  1. Utilisateurs grand public (trafic SEO)
+       - Convertir des images
+       - Compresser des images
+       - Redimensionner des images
+       - Convertir des images et des PDFs
 
-  [x] Création de compte (username, email, mot de passe)
-  [x] Hashage du mot de passe avec bcrypt
-  [x] Connexion / déconnexion
-  [x] Sessions utilisateur
-  [x] Déploiement sur Railway
+  2. Développeurs (API monétisée)
+       - API de conversion d'images
+       - Traitement en batch
+       - Automatisation de workflows
 
-================================================================================
-  PHASE 2 — Solidifier la base
-================================================================================
+Objectif :
+  Construire un hub d'outils qui génère du trafic SEO et convertit
+  un pourcentage d'utilisateurs en clients API payants.
 
-  [ ] 1. Migrer vers PostgreSQL
-          - Remplacer SQLite par une vraie base de données persistante
-          - Railway fournit un PostgreSQL gratuit
-          - Utiliser la lib "pg" ou l'ORM "Drizzle"
-          - Les données survivent aux redeploys
-
-  [ ] 2. Validation robuste des formulaires
-          - Email au bon format
-          - Mot de passe : min 8 caractères, au moins 1 chiffre
-          - Username : pas de caractères spéciaux, min 3 caractères
-          - Messages d'erreur clairs côté client ET côté serveur
-
-  [ ] 3. Réinitialisation du mot de passe par email
-          - Formulaire "Mot de passe oublié"
-          - Génération d'un token temporaire (expire après 1h)
-          - Envoi d'un email avec lien de reset (Resend ou Nodemailer)
-          - Page pour choisir un nouveau mot de passe
-
-  [ ] 4. Connexion via OAuth (Google)
-          - Bouton "Se connecter avec Google"
-          - Pas besoin de retenir un mot de passe
-          - Utiliser Passport.js avec la stratégie Google OAuth2
-
-================================================================================
-  PHASE 3 — Le produit : convertisseur WebP → PNG
-================================================================================
-
-  [ ] 5. Upload et conversion de fichiers
-          - Interface drag & drop pour uploader un .webp
-          - Conversion côté serveur avec la lib "sharp" (rapide et fiable)
-          - Téléchargement immédiat du .png résultant
-          - Pas besoin d'être connecté pour la version gratuite
-
-  [ ] 6. Système de quotas (free vs payant)
-          - Version gratuite :
-              * 10 conversions par jour (identifié par IP ou compte)
-              * Taille max : 5 MB par fichier
-              * 1 fichier à la fois
-          - Version Pro :
-              * Conversions illimitées
-              * Taille max : 50 MB par fichier
-              * Conversion en lot (jusqu'à 20 fichiers)
-              * Sans publicité
-
-  [ ] 7. Intégration des publicités (version gratuite)
-          - Google AdSense : bannière au-dessus et sous le convertisseur
-          - Interstitiel entre chaque conversion (après la 2e)
-          - Les pubs disparaissent pour les comptes Pro
-
-================================================================================
-  PHASE 4 — Monétisation réelle
-================================================================================
-
-  [ ] 8. Intégration Stripe (paiement)
-          - Abonnement mensuel à $2/mois
-          - OU achat unique "lifetime" à $9 (testé selon la demande)
-          - Webhook Stripe pour activer/désactiver le statut Pro en temps réel
-          - Gestion des annulations d'abonnement
-
-  [ ] 9. Page de pricing
-          - Comparatif clair Free vs Pro
-          - Bouton d'achat avec Stripe Checkout (hébergé par Stripe, simple)
-          - Page de confirmation après paiement
-
-  [ ] 10. Dashboard utilisateur
-          - Quota utilisé aujourd'hui
-          - Statut de l'abonnement (Free / Pro / date de renouvellement)
-          - Historique des conversions (7 derniers jours)
-          - Gérer / annuler l'abonnement
-
-================================================================================
-  PHASE 5 — Évoluer vers un éditeur complet
-================================================================================
-
-  [ ] 11. Autres formats de conversion
-          - WebP → JPG
-          - JPG / PNG → WebP (pour optimiser des sites)
-          - PNG → JPG
-          - HEIC → JPG (format iPhone, très demandé)
-
-  [ ] 12. Compression d'images
-          - Réduire le poids d'une image sans perte visible de qualité
-          - Afficher le gain en % ("votre image passe de 2.4 MB à 480 KB")
-
-  [ ] 13. Redimensionnement
-          - Choisir largeur × hauteur cible
-          - Modes : recadrer, étirer, ou conserver les proportions
-
-  [ ] 14. Traitement en lot
-          - Uploader un .zip contenant plusieurs images
-          - Télécharger un .zip avec toutes les images converties/compressées
-
-  [ ] 15. API (pour les développeurs)
-          - Endpoints REST pour convertir via requête HTTP
-          - Clé API par utilisateur Pro
-          - Documentation claire avec exemples curl
+Objectifs long terme :
+  - 100 000 visiteurs / mois
+  - 2 % de conversion en utilisateurs payants
+  - €1 500 – €5 000 / mois de revenus estimés
 
 ================================================================================
   STACK TECHNIQUE
 ================================================================================
 
-  Backend  : Node.js + Express
-  Base DB  : PostgreSQL (via Railway)
-  ORM      : Drizzle (léger et typé)
-  Images   : sharp (conversion, compression, resize)
-  Auth     : Sessions + Passport.js (OAuth Google)
-  Email    : Resend (simple, free tier généreux)
-  Paiement : Stripe
-  Pubs     : Google AdSense
-  Héberg.  : Railway
-  Frontend : HTML/CSS/JS vanilla (pas de framework pour l'instant)
+  Frontend   : Next.js + TailwindCSS
+  Backend    : Node.js + Fastify (ou Express)
+  Base DB    : PostgreSQL (Railway)
+  Stockage   : Cloudflare R2 (ou S3)
+  Email      : Nodemailer + Gmail en dev / Resend en prod (domaine requis)
+  Images     : Sharp
+  Queue      : Redis + BullMQ (introduit en Phase 3, pas en MVP)
+  Paiement   : Stripe
+  Hébergement: Railway
+
+================================================================================
+  ARCHITECTURE BACKEND
+================================================================================
+
+  Frontend
+    ↓
+  API Server (Fastify / Express)
+    ↓
+  Job Queue — Redis + BullMQ  [introduit Phase 3]
+    ↓
+  Worker Process
+    ↓
+  Stockage (R2 / S3)
+
+  Note MVP (Phase 1-2) :
+    Pas de queue — traitement synchrone avec Sharp.
+    Une conversion WebP→PNG prend ~50ms, inutile d'over-engineer au départ.
+
+================================================================================
+  SCHÉMA BASE DE DONNÉES
+================================================================================
+
+  users
+    id             SERIAL PRIMARY KEY
+    email          TEXT UNIQUE NOT NULL
+    password_hash  TEXT
+    plan           TEXT DEFAULT 'free'
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+
+  files
+    id             SERIAL PRIMARY KEY
+    user_id        INTEGER REFERENCES users(id)
+    filename       TEXT NOT NULL
+    storage_url    TEXT NOT NULL
+    mimetype       TEXT NOT NULL
+    size           INTEGER NOT NULL        -- en octets
+    expires_at     TIMESTAMPTZ NOT NULL    -- suppression automatique
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+
+  jobs
+    id             SERIAL PRIMARY KEY
+    user_id        INTEGER REFERENCES users(id)
+    tool           TEXT NOT NULL           -- ex: 'webp-to-png'
+    status         TEXT DEFAULT 'pending'  -- pending / processing / done / failed
+    input_file     INTEGER REFERENCES files(id)
+    output_file    INTEGER REFERENCES files(id)
+    error          TEXT                    -- message si échec
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+
+  api_keys
+    id             SERIAL PRIMARY KEY
+    user_id        INTEGER REFERENCES users(id)
+    key            TEXT UNIQUE NOT NULL
+    name           TEXT                    -- label utilisateur, ex: "prod key"
+    last_used_at   TIMESTAMPTZ
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+
+  api_usage
+    id             SERIAL PRIMARY KEY
+    user_id        INTEGER REFERENCES users(id)
+    api_key_id     INTEGER REFERENCES api_keys(id)
+    tool           TEXT NOT NULL
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+
+  subscriptions
+    id                  SERIAL PRIMARY KEY
+    user_id             INTEGER REFERENCES users(id)
+    stripe_customer_id  TEXT
+    plan                TEXT
+    status              TEXT
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+
+================================================================================
+  STRUCTURE DES DOSSIERS
+================================================================================
+
+  imgflow/
+  ├── frontend/
+  │   ├── pages/
+  │   ├── components/
+  │   └── tools/
+  ├── api/
+  │   ├── routes/
+  │   ├── middleware/
+  │   ├── auth/
+  │   └── services/
+  ├── workers/
+  │   ├── image/
+  │   └── pdf/
+  ├── db/
+  │   ├── migrations/
+  │   └── schema/
+  └── lib/
+      ├── storage/
+      ├── queue/
+      └── processing/
+
+================================================================================
+  LIMITES PAR PLAN
+================================================================================
+
+  Plan         Conversions/mois   Taille max/fichier   Rétention fichiers
+  ----------   ----------------   ------------------   ------------------
+  Free         100                10 MB                24 heures
+  Pro (€9)     10 000             50 MB                30 jours
+  Business     100 000            200 MB               90 jours
+               (€29)
+
+================================================================================
+  PHASE 1 — MVP Core  [Semaines 1–2]
+================================================================================
+
+Objectif :
+  Shipper le premier outil fonctionnel sans auth, sans queue,
+  sans S3. Valider que l'outil de conversion fonctionne.
+
+  [x] Conversion WebP → PNG (synchrone avec Sharp)
+  [x] Upload de fichier
+  [x] Téléchargement du fichier converti
+  [ ] Traitement en mémoire / dossier /tmp (pas de S3 en MVP)
+  [ ] Page d'outil simple avec UI drag & drop
+  [ ] Affichage du résultat + bouton de téléchargement
+
+  Note : Pas d'authentification en Phase 1.
+         Pas de job queue. Sharp est synchrone, ~50ms par conversion.
+
+================================================================================
+  PHASE 2 — Auth + Stockage + Multi-outils  [Semaines 2–4]
+================================================================================
+
+Objectif :
+  Ajouter l'authentification, migrer vers R2 pour le stockage,
+  et étendre la palette d'outils (images + PDFs).
+
+  [ ] Inscription / connexion / déconnexion
+  [ ] Vérification par email
+  [ ] Réinitialisation de mot de passe
+  [ ] Stockage des fichiers sur Cloudflare R2
+  [ ] Politique d'expiration des fichiers (24h free, 30j Pro)
+  [ ] Cron job ou lifecycle rule R2 pour nettoyer les fichiers expirés
+
+  Outils image à implémenter :
+    [ ] WebP → PNG
+    [ ] PNG → WebP
+    [ ] JPG → PNG
+    [ ] PNG → JPG
+    [ ] HEIC → JPG
+    [ ] Compression d'image (afficher le gain en %)
+    [ ] Redimensionnement (largeur × hauteur, avec gestion des proportions)
+    [ ] Rotation / recadrage
+    [ ] Suppression des métadonnées EXIF
+
+  Outils PDF à implémenter :
+    [ ] Image → PDF
+    [ ] PDF → JPG
+    [ ] Compression PDF
+    [ ] Fusion de PDFs
+    [ ] Découpage de PDF
+
+  Structure des URLs (une seule convention, pas de duplication) :
+    /tools/webp-to-png
+    /tools/png-to-webp
+    /tools/jpg-to-png
+    /tools/compress-image
+    /tools/resize-image
+    /tools/crop-image
+    /tools/image-to-pdf
+    /tools/pdf-to-jpg
+    /tools/compress-pdf
+    /tools/merge-pdf
+
+  Chaque page doit contenir :
+    - Interface de l'outil
+    - Contenu SEO (500–800 mots)
+    - Section FAQ avec schema markup
+    - Liens internes vers outils similaires
+
+================================================================================
+  PHASE 3 — Dashboard + Job Queue  [Semaines 4–5]
+================================================================================
+
+Objectif :
+  Permettre aux utilisateurs de gérer leurs fichiers et clés API.
+  Introduire BullMQ pour les traitements lourds (batch, PDF).
+
+  Dashboard utilisateur (/dashboard) :
+    [ ] Historique des conversions
+    [ ] Re-téléchargement des fichiers (dans la limite de rétention)
+    [ ] Quota utilisé ce mois
+    [ ] Gestion des clés API (créer, nommer, révoquer)
+    [ ] Paramètres du compte
+
+  Job Queue (Redis + BullMQ) :
+    [ ] File de traitement asynchrone
+    [ ] Worker séparé pour les images
+    [ ] Worker séparé pour les PDFs
+    [ ] Statut du job en temps réel (polling ou WebSocket)
+
+  Flow de traitement :
+    1. Utilisateur uploade un fichier
+    2. Serveur stocke le fichier sur R2
+    3. Job créé dans la queue Redis
+    4. Worker traite le fichier
+    5. Résultat stocké sur R2
+    6. Utilisateur reçoit le lien de téléchargement
+
+  Traitement en batch :
+    [ ] Upload ZIP → traitement de toutes les images → téléchargement ZIP
+
+================================================================================
+  PHASE 4 — API Publique  [Semaines 5–6]
+================================================================================
+
+Objectif :
+  Lancer une API REST pour les développeurs.
+
+  Endpoints :
+    POST /api/v1/convert
+    POST /api/v1/compress
+    POST /api/v1/resize
+    POST /api/v1/crop
+
+  Authentification :
+    Authorization: Bearer API_KEY
+
+  Exemple de réponse :
+    {
+      "url": "https://cdn.imgflow.io/output/file.png",
+      "size": 48200,
+      "expires_at": "2024-12-01T00:00:00Z"
+    }
+
+  Rate limiting par plan :
+    Free     : 100 conversions / mois
+    Pro      : 10 000 conversions / mois
+    Business : 100 000 conversions / mois
+
+  [ ] Tracking de l'usage via table api_usage
+  [ ] Documentation de l'API avec exemples curl / Node / Python
+  [ ] Page développeur avec playground interactif
+
+================================================================================
+  PHASE 5 — Monétisation  [Semaines 6–7]
+================================================================================
+
+  [ ] Intégration Stripe (abonnements)
+  [ ] Webhook Stripe (activation / désactivation plan en temps réel)
+  [ ] Page pricing avec comparatif Free / Pro / Business
+  [ ] Page de confirmation post-paiement
+
+  Plans :
+    Free       : gratuit — 100 conversions/mois
+    Pro        : €9/mois — 10 000 conversions/mois
+    Business   : €29/mois — 100 000 conversions/mois
+
+  Canaux de monétisation :
+    - Abonnements API
+    - Plans par usage (crédits à l'acte)
+    - Publicités pour les utilisateurs gratuits (Google AdSense)
+
+================================================================================
+  PHASE 6 — SEO  [Semaines 5–8, en parallèle]
+================================================================================
+
+Objectif :
+  Générer du trafic organique via des pages d'outils optimisées.
+
+  Pages SEO cibles (30–50 pages) :
+    /tools/webp-to-png
+    /tools/png-to-webp
+    /tools/jpg-to-png
+    /tools/png-to-jpg
+    /tools/heic-to-jpg
+    /tools/image-compressor
+    /tools/resize-image
+    /tools/crop-image
+    /tools/remove-image-metadata
+    /tools/image-to-pdf
+    /tools/pdf-to-jpg
+    /tools/compress-pdf
+    /tools/merge-pdf
+    /tools/split-pdf
+    ... (continuer avec variantes longue traîne)
+
+  Chaque page contient :
+    [ ] Interface de l'outil intégrée
+    [ ] 500–800 mots de contenu SEO
+    [ ] FAQ schema (JSON-LD)
+    [ ] Liens internes vers outils connexes
+    [ ] Balises Open Graph pour le partage social
+
+================================================================================
+  PHASE 7 — DevOps & Qualité  [En continu]
+================================================================================
+
+  [ ] CI/CD (GitHub Actions)
+        - Lint + tests à chaque push
+        - Déploiement automatique sur Railway
+  [ ] Tests
+        - Tests unitaires sur les services de traitement (Sharp, PDF)
+        - Tests d'intégration sur les routes API
+  [ ] Monitoring
+        - Logs structurés
+        - Alertes sur les jobs en échec
+        - Uptime monitoring (ex: Better Uptime)
+  [ ] Variables d'environnement requises :
+        DATABASE_URL
+        SESSION_SECRET
+        GMAIL_USER / GMAIL_PASS  (dev)
+        RESEND_API_KEY            (prod, domaine requis)
+        APP_URL
+        R2_ACCOUNT_ID
+        R2_ACCESS_KEY_ID
+        R2_SECRET_ACCESS_KEY
+        R2_BUCKET_NAME
+        REDIS_URL
+        STRIPE_SECRET_KEY
+        STRIPE_WEBHOOK_SECRET
+
+================================================================================
+  RGPD & CONFIDENTIALITÉ
+================================================================================
+
+  - Les images uploadées peuvent contenir des données personnelles (visages, docs)
+  - Politique de rétention affichée clairement sur le site
+  - Suppression automatique des fichiers selon le plan de l'utilisateur
+  - Option de suppression manuelle dans le dashboard
+  - Pas de revente des fichiers uploadés à des tiers
+
+================================================================================
+  FONCTIONNALITÉS FUTURES (post-lancement)
+================================================================================
+
+  Outils IA :
+    - Suppression d'arrière-plan par IA
+    - Upscaler d'images par IA
+    - Amélioration d'image par IA
+
+  Outils batch avancés :
+    - Traitement de dossiers entiers
+    - Automatisation via webhooks
+    - Intégration Zapier / Make
 
 ================================================================================
